@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:noble
 
 ## Set locale
 RUN apt-get update -qq \
@@ -6,26 +6,30 @@ RUN apt-get update -qq \
     && echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen \
     && locale-gen en_GB.utf8 \
     && /usr/sbin/update-locale LANG=en_GB.UTF-8
-ENV LC_ALL en_GB.UTF-8
-ENV LANG en_GB.UTF-8
+ENV LC_ALL=en_GB.UTF-8
+ENV LANG=en_GB.UTF-8
 
 ## Set other env vars
-ENV DEBIAN_FRONTEND noninteractive
-ENV TZ UTC
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
 
 ## Setup R and r2u for fast package install
-## Next RUN statement from r2u source, https://github.com/eddelbuettel/r2u/blob/master/inst/scripts/add_cranapt_jammy.sh
-## Only change is to commands written to Rprofile.site (change order and add bspm.sudo = TRUE)
+## Next RUN statement from r2u source, https://github.com/eddelbuettel/r2u/blob/master/inst/scripts/add_cranapt_noble.sh
+## Only changes:
+##   - commands written to Rprofile.site (change order and add bspm.sudo = TRUE)
+##   - apt does not like "python3-{dbus,gi,apt}" in Dockerfile, expand to "python3-dbus python3-gi python3-apt"
 ## First: update apt and get keys
-RUN apt-get install --yes --no-install-recommends wget ca-certificates gnupg \
-    && wget -q -O- https://eddelbuettel.github.io/r2u/assets/dirk_eddelbuettel_key.asc | tee -a /etc/apt/trusted.gpg.d/cranapt_key.asc \
+RUN apt install --yes --no-install-recommends wget ca-certificates gnupg \
+    && wget -q -O- https://eddelbuettel.github.io/r2u/assets/dirk_eddelbuettel_key.asc > /etc/apt/trusted.gpg.d/cranapt_key.asc \
+    && wget -q -O- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc > /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
+## use gpg directly instead of the now-deprecated apt-key command
+    && gpg --keyserver keyserver.ubuntu.com --recv-keys 67C2D66C4B1D4339 51716619E084DAB9 \
+    && gpg --export --armor 67C2D66C4B1D4339 51716619E084DAB9 > /usr/share/keyrings/r2u.gpg \
 ## Second: add the repo -- here we use the well-connected mirror
-    && echo "deb [arch=amd64] https://r2u.stat.illinois.edu/ubuntu jammy main" > /etc/apt/sources.list.d/cranapt.list \
+    && echo "deb [arch=amd64,arm64] https://r2u.stat.illinois.edu/ubuntu noble main" > /etc/apt/sources.list.d/cranapt.list \
 ## Third: ensure current R is used
-    && wget -q -O- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
-    && echo "deb [arch=amd64] https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" > /etc/apt/sources.list.d/cran_r.list \
-    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 67C2D66C4B1D4339 51716619E084DAB9 \
-    && apt-get update -qq \
+    && echo "deb [arch=amd64,arm64] https://cloud.r-project.org/bin/linux/ubuntu noble-cran40/" > /etc/apt/sources.list.d/cran_r.list \
+    && apt update -qq \
     && DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends r-base-core \
 ## Fourth: add pinning to ensure package sorting
     && echo "Package: *" > /etc/apt/preferences.d/99cranapt \
@@ -34,7 +38,7 @@ RUN apt-get install --yes --no-install-recommends wget ca-certificates gnupg \
     && echo "Pin-Priority: 700"  >> /etc/apt/preferences.d/99cranapt \
 ## Fifth: install bspm (and its Python requirements) and enable it
 ## If needed (in bare container, say) install python tools for bspm and R itself
-    && apt-get install --yes --no-install-recommends python3-dbus python3-gi python3-apt make \
+    && apt install --yes --no-install-recommends python3-dbus python3-gi python3-apt make \
 ## Then install bspm (as root) and enable it, and enable a speed optimization
     && Rscript -e 'install.packages("bspm")' \
     && RHOME=$(R RHOME) \
@@ -43,9 +47,9 @@ RUN apt-get install --yes --no-install-recommends wget ca-certificates gnupg \
 
 ## Install git and RStudio Server
 RUN apt-get install --yes --no-install-recommends gdebi-core git-all \
-    && wget -q https://download2.rstudio.org/server/jammy/amd64/rstudio-server-2024.09.0-375-amd64.deb \
-    && apt-get install --yes --no-install-recommends ./rstudio-server-2024.09.0-375-amd64.deb \
-    && rm rstudio-server-2024.09.0-375-amd64.deb
+    && wget -q https://download2.rstudio.org/server/jammy/amd64/rstudio-server-2024.12.1-563-amd64.deb \
+    && apt-get install --yes --no-install-recommends ./rstudio-server-2024.12.1-563-amd64.deb \
+    && rm rstudio-server-2024.12.1-563-amd64.deb
 
 ## Next, setup user and sudo privileges
 RUN apt-get install --yes --no-install-recommends sudo \

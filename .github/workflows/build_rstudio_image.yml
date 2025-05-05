@@ -16,7 +16,7 @@ jobs:
 
     - name: Build and tag Docker image
       run: |
-        docker build -t ghcr.io/louisaslett/dssc:4.4.1 -t ghcr.io/louisaslett/dssc:latest ./docker
+        docker build -t ghcr.io/louisaslett/dssc:4.5.0 -t ghcr.io/louisaslett/dssc:latest ./docker
 
     - name: Push Docker image to GHCR
       run: |
